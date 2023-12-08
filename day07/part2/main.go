@@ -17,7 +17,7 @@ const (
 	HighCard
 )
 
-var cardFaces = []rune{'A', 'K', 'Q', 'T', '9', '8', '7', '6', '5', '4', '3', '2', 'J'}
+var cardFaces = []rune{'A', 'K', 'Q', 'T', '9', '8', '7', '6', '5', '4', '3', '2'}
 
 // uh this is stupid
 // but the runes are different.
@@ -177,24 +177,33 @@ func (h *hand) Type() int {
 		return typ
 	}
 
+	original := string(h.cards)
 	// backtracking for all types that are greater than the current one.
 	for t := 0; t <= typ; t++ {
 		// don't modify the original
-		cards := make([]rune, len(h.cards))
-		copy(cards, h.cards)
+		// cards := make([]rune, len(h.cards))
+		// copy(cards, h.cards)
 
 		// we start by changing the first occurrence of J.
 		// gather all J indexes.
-		indexes := []int{}
-		for i, c := range cards {
-			if c == 'J' {
-				indexes = append(indexes, i)
-				cards[i] = 'A'
+		// indexes := []int{}
+		for _, c := range cardFaces {
+
+			// if c == 'J' {
+			// 	indexes = append(indexes, i)
+			// 	cards[i] = 'A'
+			// }
+			// this doesn't quite work. i thought that the best solution would be to plain
+			// change all of the values. but for some reason that doesn't quite work.
+			replaced := strings.ReplaceAll(original, "J", string(c))
+			if types[typ]([]rune(replaced)) {
+				return t
 			}
 		}
-		if tryType(t, cards, indexes, 0) {
-			return t
-		}
+
+		// if tryType(t, cards, indexes, 0) {
+		// 	return t
+		// }
 	}
 
 	return -1
