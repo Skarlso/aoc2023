@@ -15,35 +15,31 @@ type matcher struct {
 	match func(origin, r rune) bool
 }
 
-var heading = []matcher{
-	// right
-	{
-		point: point{x: 1, y: 0},
-		match: func(origin, r rune) bool {
-
-			return (origin == '-' || origin == 'L' || origin == 'F') && (r == '-' || r == 'J' || r == '7')
-		},
+// maybe this is fine. but think about how these connect and where things are coming from.
+var directions = map[rune][]point{
+	'|': {
+		{x: 0, y: -1},
+		{x: 0, y: 1},
 	},
-	// down
-	{
-		point: point{x: 0, y: 1},
-		match: func(origin, r rune) bool {
-			return (origin == '|' || origin == '7' || origin == 'F') && (r == '|' || r == 'J' || r == 'L')
-		},
+	'-': {
+		{x: -1, y: 0},
+		{x: 1, y: 0},
 	},
-	// left
-	{
-		point: point{x: -1, y: 0},
-		match: func(origin, r rune) bool {
-			return (origin == '-' || origin == 'J' || origin == '7') && (r == '-' || r == 'L' || r == 'F')
-		},
+	'L': {
+		{x: 0, y: -1},
+		{x: 1, y: 0},
 	},
-	// up
-	{
-		point: point{x: 0, y: -1},
-		match: func(origin, r rune) bool {
-			return (origin == '|' || origin == 'L' || origin == 'J') && (r == '|' || r == 'F' || r == '7')
-		},
+	'J': {
+		{x: 0, y: -1},
+		{x: -1, y: 0},
+	},
+	'7': {
+		{x: -1, y: 0},
+		{x: 0, y: 1},
+	},
+	'F': {
+		{x: 1, y: 0},
+		{x: 0, y: 1},
 	},
 }
 
@@ -75,6 +71,8 @@ func main() {
 	// step is 1 because we already stepped to current from starting position
 	steps := 1
 
+	// This is a different approach. It only works because we changed the starting location to an actual
+	// item. This prevents the need to a queue and a BFS for a patch that connects back to start.
 	prev := startingPosition
 	for {
 		if current == startingPosition {
@@ -92,14 +90,14 @@ func main() {
 
 // we are in a loop so technically we should have only ONE way out except the one from which we came from
 func findPath(maze [][]rune, p point, prev point) point {
-	for _, d := range heading {
+	for _, d := range directions[maze[p.y][p.x]] {
 		// fmt.Println("d: ", d)
-		newPoint := point{x: p.x + d.point.x, y: p.y + d.point.y}
+		newPoint := point{x: p.x + d.x, y: p.y + d.y}
 		if newPoint.x < 0 || newPoint.y < 0 || newPoint.y >= len(maze) || newPoint.x >= len(maze[newPoint.y]) {
 			continue
 		}
 
-		if d.match(maze[p.y][p.x], maze[newPoint.y][newPoint.x]) && newPoint != prev {
+		if newPoint != prev {
 			// fmt.Println("new point match: ", newPoint)
 			return newPoint
 		}
