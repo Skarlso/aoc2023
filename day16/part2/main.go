@@ -135,18 +135,80 @@ func main() {
 	}
 
 	// from the top
-	visited := map[impact]struct{}{}
+	// visited := map[impact]struct{}{}
+	maxEnergy := 0
+	// energized := map[point]struct{}{}
+
+	energy := findMax(maze, 0, -1, func(maze [][]rune, x, y int) point {
+		return point{x: x, y: -1}
+	}, point{x: 0, y: 1}, func(x, y int, maze [][]rune) bool {
+		return x >= len(maze[0])
+	}, func(x, y *int) {
+		*x++
+	})
+
+	if energy > maxEnergy {
+		maxEnergy = energy
+	}
+
+	fmt.Println(maxEnergy)
+
+	energy = findMax(maze, 0, 1, func(maze [][]rune, x, y int) point {
+		return point{x: x, y: len(maze)}
+	}, point{x: 0, y: -1}, func(x, y int, maze [][]rune) bool {
+		return x >= len(maze[0])
+	}, func(x, y *int) {
+		*x++
+	})
+
+	if energy > maxEnergy {
+		maxEnergy = energy
+	}
+
+	fmt.Println(maxEnergy)
+
+	energy = findMax(maze, 1, 0, func(maze [][]rune, x, y int) point {
+		return point{x: -1, y: y}
+	}, point{x: 1, y: 0}, func(x, y int, maze [][]rune) bool {
+		return y >= len(maze)
+	}, func(x, y *int) {
+		*y++
+	})
+
+	if energy > maxEnergy {
+		maxEnergy = energy
+	}
+
+	fmt.Println(maxEnergy)
+
+	energy = findMax(maze, -1, 0, func(maze [][]rune, x, y int) point {
+		return point{x: len(maze[y]), y: y}
+	}, point{x: -1, y: 0}, func(x, y int, maze [][]rune) bool {
+		return y >= len(maze)
+	}, func(x, y *int) {
+		*y++
+	})
+
+	if energy > maxEnergy {
+		maxEnergy = energy
+	}
+
+	fmt.Println(maxEnergy)
+}
+
+func findMax(maze [][]rune, x, y int, makeStartPoint func(maze [][]rune, x, y int) point, heading point, breakFn func(x, y int, maze [][]rune) bool, inc func(x, y *int)) int {
 	maxEnergy := 0
 	energized := map[point]struct{}{}
-	x := 0
+
 	for {
-		if x >= len(maze[0]) {
+		if breakFn(x, y, maze) {
 			break
 		}
 
-		start := point{x: x, y: -1}
+		start := makeStartPoint(maze, x, y)
+
 		queue := []*beam{
-			{heading: point{x: 0, y: 1}, current: start, visited: map[impact]struct{}{}},
+			{heading: heading, current: start, visited: map[impact]struct{}{}},
 		}
 
 		// we stop when no beams can move
@@ -155,138 +217,8 @@ func main() {
 			current, queue = queue[0], queue[1:]
 
 			energized[current.current] = struct{}{}
-			// if _, ok := visited[impact{location: current.current, fromDirection: current.heading}]; ok {
-			// 	// we already reached this point by others...
-			// 	break
-			// }
 
-			visited[impact{location: current.current, fromDirection: current.heading}] = struct{}{}
-
-			queue = append(queue, moveBeam(maze, current)...)
-		}
-
-		if len(energized)-1 > maxEnergy {
-			maxEnergy = len(energized) - 1
-		}
-
-		energized = map[point]struct{}{}
-		x++
-	}
-
-	fmt.Println(maxEnergy)
-
-	energized = map[point]struct{}{}
-
-	// // TODO: Put this into a function.
-	// start = point{x: -1, y: 0}
-
-	// from the bottom
-	// visited = map[impact]struct{}{}
-	// maxEnergy := 0
-	// energized := map[point]struct{}{}
-	x = 0
-	for {
-		if x >= len(maze[0]) {
-			break
-		}
-
-		start := point{x: x, y: len(maze)}
-		queue := []*beam{
-			{heading: point{x: 0, y: -1}, current: start, visited: map[impact]struct{}{}},
-		}
-
-		// we stop when no beams can move
-		var current *beam
-		for len(queue) > 0 {
-			current, queue = queue[0], queue[1:]
-
-			energized[current.current] = struct{}{}
-			// if _, ok := visited[impact{location: current.current, fromDirection: current.heading}]; ok {
-			// 	// we already reached this point by others...
-			// 	break
-			// }
-
-			visited[impact{location: current.current, fromDirection: current.heading}] = struct{}{}
-
-			queue = append(queue, moveBeam(maze, current)...)
-		}
-
-		if len(energized)-1 > maxEnergy {
-			maxEnergy = len(energized) - 1
-		}
-
-		energized = map[point]struct{}{}
-		x++
-	}
-
-	fmt.Println(maxEnergy)
-
-	energized = map[point]struct{}{}
-
-	// from right
-	y := 0
-	for {
-		if y >= len(maze) {
-			break
-		}
-
-		start := point{x: -1, y: y}
-		queue := []*beam{
-			{heading: point{x: 1, y: 0}, current: start, visited: map[impact]struct{}{}},
-		}
-
-		// we stop when no beams can move
-		var current *beam
-		for len(queue) > 0 {
-			current, queue = queue[0], queue[1:]
-
-			energized[current.current] = struct{}{}
-			// if _, ok := visited[impact{location: current.current, fromDirection: current.heading}]; ok {
-			// 	// we already reached this point by others...
-			// 	break
-			// }
-
-			visited[impact{location: current.current, fromDirection: current.heading}] = struct{}{}
-
-			queue = append(queue, moveBeam(maze, current)...)
-		}
-
-		if len(energized)-1 > maxEnergy {
-			maxEnergy = len(energized) - 1
-		}
-
-		energized = map[point]struct{}{}
-		y++
-	}
-
-	fmt.Println(maxEnergy)
-
-	energized = map[point]struct{}{}
-
-	// start = point{x: -1, y: 0}
-	y = 0
-	for {
-		if y >= len(maze) {
-			break
-		}
-
-		start := point{x: len(maze[y]), y: y}
-		queue := []*beam{
-			{heading: point{x: -1, y: 0}, current: start, visited: map[impact]struct{}{}},
-		}
-
-		// we stop when no beams can move
-		var current *beam
-		for len(queue) > 0 {
-			current, queue = queue[0], queue[1:]
-
-			energized[current.current] = struct{}{}
-			// if _, ok := visited[impact{location: current.current, fromDirection: current.heading}]; ok {
-			// 	// we already reached this point by others...
-			// 	break
-			// }
-
-			visited[impact{location: current.current, fromDirection: current.heading}] = struct{}{}
+			// visited[impact{location: current.current, fromDirection: current.heading}] = struct{}{}
 
 			queue = append(queue, moveBeam(maze, current)...)
 		}
@@ -296,10 +228,11 @@ func main() {
 		}
 
 		energized = map[point]struct{}{}
-		y++
+
+		inc(&x, &y)
 	}
 
-	fmt.Println(maxEnergy)
+	return maxEnergy
 }
 
 // we should probably not track individual beams.
