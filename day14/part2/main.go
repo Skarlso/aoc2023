@@ -56,7 +56,30 @@ func main() {
 		// fmt.Println()
 
 		// slide east
-		slideEast(maze)
+		slide(func(maze [][]rune) int {
+			return len(maze[0]) - 1
+		}, func(maze [][]rune) int {
+			return 0
+		}, func(maze [][]rune, y *int) bool {
+			if *y < len(maze) {
+				return false
+			}
+
+			*y++
+
+			return true
+		}, func(maze [][]rune, x *int) bool {
+			// for x := len(maze[y]) - 1; x >= 0; x-- {
+			if *x >= 0 {
+				return false
+			}
+
+			*x--
+
+			return true
+		}, maze, point{x: -1, y: 0})
+
+		// slideEast(maze)
 
 		// display(maze)
 		begin++
@@ -149,12 +172,17 @@ func slideWest(maze [][]rune) {
 	}
 }
 
-func slideEast(maze [][]rune) {
+func slide(startX func(maze [][]rune) int, startY func(maze [][]rune) int, forY func(maze [][]rune, y *int) bool, forX func(maze [][]rune, x *int) bool, maze [][]rune, direction point) {
 	// y
 	freeSpots := map[int]point{}
+	var (
+		x, y = startX(maze), startY(maze)
+	)
 
-	for y := 0; y < len(maze); y++ {
-		for x := len(maze[y]) - 1; x >= 0; x-- {
+	// for y := 0; y < len(maze); y++ {
+	// for x := len(maze[y]) - 1; x >= 0; x-- {
+	for forY(maze, &y) {
+		for forX(maze, &x) {
 			if maze[y][x] == '.' {
 				if _, ok := freeSpots[y]; !ok {
 					freeSpots[y] = point{x: x, y: y}
@@ -162,7 +190,8 @@ func slideEast(maze [][]rune) {
 			}
 
 			if maze[y][x] == '#' {
-				freeSpots[y] = point{x: x - 1, y: y}
+				// freeSpots[y] = point{x: x - 1, y: y}
+				freeSpots[y] = point{x: x + direction.x, y: y + direction.y}
 			}
 
 			if maze[y][x] == 'O' {
@@ -170,9 +199,9 @@ func slideEast(maze [][]rune) {
 					if maze[p.y][p.x] != 'O' {
 						maze[p.y][p.x] = 'O'
 						maze[y][x] = '.'
-						freeSpots[y] = point{x: p.x - 1, y: p.y}
+						freeSpots[y] = point{x: p.x + direction.x, y: p.y + direction.y}
 					} else {
-						freeSpots[y] = point{x: p.x - 1, y: p.y}
+						freeSpots[y] = point{x: p.x + direction.x, y: p.y + direction.y}
 					}
 				}
 			}
