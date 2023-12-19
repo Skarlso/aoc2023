@@ -54,7 +54,7 @@ func main() {
 		// display(maze, current.location)
 		// time.Sleep(300 * time.Millisecond)
 
-		if current.location == goal {
+		if current.location == goal && current.stepsInDirection >= 4 {
 			minCost = min(minCost, cost[current])
 		}
 
@@ -71,7 +71,7 @@ func main() {
 				nextStepsInDirection = current.stepsInDirection + 1
 			}
 
-			if (d == current.direction && current.stepsInDirection < 3) || d != current.direction {
+			if (d == current.direction && current.stepsInDirection < 10) || (d != current.direction && current.stepsInDirection >= 4) {
 				next := elf{location: np, direction: d, stepsInDirection: nextStepsInDirection}
 
 				if v, ok := cost[next]; !ok || v > totalLoss {
