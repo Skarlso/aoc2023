@@ -32,26 +32,18 @@ func main() {
 
 func calculate(conditions string, rules []string) cache.Cacheable[int] {
 	return func() int {
-		//if v, ok := cache[args{conditions: conditions, rules: strings.Join(rules, ",")}]; ok {
-		//	return v
-		//}
-
 		if len(rules) == 0 {
 			if strings.Contains(conditions, "#") {
-				//cache[args{conditions: conditions, rules: strings.Join(rules, "")}] = 0
 				return 0
 			}
 
-			//cache[args{conditions: conditions, rules: strings.Join(rules, "")}] = 1
 			return 1
 		}
 		if len(conditions) == 0 {
 			if len(rules) == 0 {
-				//cache[args{conditions: conditions, rules: strings.Join(rules, "")}] = 1
 				return 1
 			}
 
-			//cache[args{conditions: conditions, rules: strings.Join(rules, "")}] = 0
 			return 0
 		}
 
@@ -72,7 +64,6 @@ func calculate(conditions string, rules []string) cache.Cacheable[int] {
 			}
 		}
 
-		//cache[args{conditions: conditions, rules: strings.Join(rules, "")}] = result
 		return result
 	}
 }
