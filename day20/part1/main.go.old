@@ -1,0 +1,179 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+	"sync"
+	"time"
+)
+
+type pulse string
+
+var low pulse = "low"
+var high pulse = "high"
+
+// this could be an embedded field, but I don't care right now
+// this guy now needs syncing.... does it though...?
+var modules = map[string]*module{}
+
+// either I make implementations for each of these with its own thing... or handle everything together for now.
+type module struct {
+	Type        byte
+	Name        string
+	Connections []string // consider making this a map
+	Pulses      []pulse
+
+	// receiver chan pulse
+	status   bool             // on / off
+	remember map[string]pulse // the last signal we remember for each of our connection
+
+	mu *sync.Mutex
+}
+
+// Somehow I need a global mutex kind-a thing so the notifies aren't running over each other.
+
+// Notify is called if a pulse has been planted in the pulses slice.
+func (m *module) Notify(name string) {
+	// this won't be enough...
+	for m.mu.TryLock() {
+		fmt.Println("try lock")
+	}
+	defer m.mu.Unlock()
+	// I need to BLOCK until the processing of the signal is done.
+	// I need a mutex... lock it, call notify, block until mutex is freed.
+	// The problem there is that we won't be able to guaranty the order
+	// of processing.
+	time.Sleep(1 * time.Second)
+	if len(m.Pulses) == 0 {
+		return
+	}
+
+	p := m.Pulses[0]
+	fmt.Printf("%s pulse from %s -> %s\n", p, name, m.Name)
+
+	// handle the pulse
+	if m.Type == 'b' {
+		// it should be okay, because we'll have to wait for the loops to run through anyways..
+		for _, c := range m.Connections {
+			modules[c].Pulses = append(modules[c].Pulses, p)
+		}
+	}
+
+	if m.Type == '&' {
+		m.remember[name] = p // where the pulse came from
+
+		if len(m.Connections) > 0 {
+			var (
+				prev  pulse
+				equal bool
+			)
+			for _, v := range m.remember {
+				if prev == "" {
+					prev = v
+
+					continue
+				}
+
+				if v != prev {
+					equal = false
+
+					break
+				}
+			}
+
+			if equal {
+				if prev == high {
+					for _, c := range m.Connections {
+						modules[c].Pulses = append(modules[c].Pulses, low)
+					}
+				} else {
+					for _, c := range m.Connections {
+						modules[c].Pulses = append(modules[c].Pulses, high)
+					}
+				}
+			}
+		}
+
+	}
+
+	if m.Type == '%' {
+		if p == low {
+			if m.status {
+				for _, c := range m.Connections {
+					modules[c].Pulses = append(modules[c].Pulses, low)
+				}
+			} else {
+				for _, c := range m.Connections {
+					modules[c].Pulses = append(modules[c].Pulses, high)
+				}
+			}
+
+			// flip
+			m.status = !m.status
+		}
+
+	}
+
+	for _, c := range m.Connections {
+		// there is probably a bug in this...
+		modules[c].Notify(m.Name)
+	}
+}
+
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: go run part1/main.go [file]")
+		os.Exit(1)
+	}
+	file := os.Args[1]
+
+	content, _ := os.ReadFile(file)
+	split := strings.Split(string(content), "\n")
+	mu := &sync.Mutex{}
+
+	for _, line := range split {
+		lineSplit := strings.Split(line, " -> ")
+		m := module{}
+		m.Type = lineSplit[0][0]
+		switch lineSplit[0][0] {
+		case '%':
+			m.Name = string(lineSplit[0][1:])
+		case '&':
+			m.Name = string(lineSplit[0][1:])
+			m.remember = make(map[string]pulse)
+		case 'b':
+			m.Name = "broadcaster"
+		}
+
+		connections := strings.Split(lineSplit[1], ", ")
+		m.Connections = connections
+
+		if m.Type == '&' {
+			for _, c := range m.Connections {
+				m.remember[c] = low
+			}
+		}
+
+		m.mu = mu
+
+		modules[m.Name] = &m
+	}
+
+	fmt.Println(modules)
+	signals := 1 //1000
+
+	// I need to launch all these fuckers and wait for them to acquire a lock
+	// once they do, they can proceed with processing their signal.
+	// Basically, just do `go m.Start()` which will listen... only ONE module can run
+	// at the same time. Meaning it will update the modules, and then exit.
+	// The rest are just there, waiting for the mutex to be freed? But this will not
+	// guarantee order. What will? The fact, that the channel blocks... ? But that would
+	// mean that the module can't finish sending, meaning it could cause a deadlock.
+	// buffered channels would MAYBE do the trick?
+	for range signals {
+		broadcaster := modules["broadcaster"]
+		broadcaster.Pulses = append(broadcaster.Pulses, low)
+		broadcaster.Notify("button")
+	}
+}

@@ -1,0 +1,191 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+type pulse string
+
+var low pulse = "low"
+var high pulse = "high"
+
+// this could be an embedded field, but I don't care right now
+// this guy now needs syncing.... does it though...?
+var modules = map[string]*module{}
+
+// either I make implementations for each of these with its own thing... or handle everything together for now.
+type module struct {
+	Type        byte
+	Name        string
+	Connections []string // consider making this a map
+	Pulses      []pulse
+
+	// receiver chan pulse
+	status   bool             // on / off
+	remember map[string]pulse // the last signal we remember for each of our connection
+}
+
+// Somehow I need a global mutex kind-a thing so the notifies aren't running over each other.
+
+var (
+	lowCount  int
+	highCount int
+)
+
+// Notify is called if a pulse has been planted in the pulses slice.
+func (m *module) Notify(name string) {
+	// fmt.Printf("pulses queue for %s: %v\n", m.Name, m.Pulses)
+	// time.Sleep(1 * time.Second)
+	// if len(m.Pulses) == 0 {
+	// 	return
+	// }
+
+	// TODO: When the pulse is being processed by Notify, it's actually taking the pulse from A even though
+	// it's saying that the pulse came from B.... So the problem is as I thought it would be.
+	// That the queue is taking off a pulse after notify that it doesn't belong to...
+	// QUESTION: HOW THE FUCK do I make sure that the pulses are sent out and only after that
+	// the processing begins?
+	var p pulse
+	p, m.Pulses = m.Pulses[0], m.Pulses[1:]
+	if p == high {
+		highCount++
+	} else {
+		lowCount++
+	}
+
+	fmt.Printf("%s -%s-> to %s\n", name, p, m.Name)
+
+	if len(m.Connections) == 0 {
+		// just count the connections and return
+		return
+	}
+
+	// handle the pulse
+	if m.Type == 'b' {
+		m.sendPulse(p)
+		m.notifyAll()
+	}
+
+	if m.Type == '&' {
+		m.remember[name] = p // where the pulse came from
+		fmt.Printf("remember %s: %v\n", m.Name, m.remember)
+
+		allHigh := true
+		for _, v := range m.remember {
+			if v == low {
+				allHigh = false
+
+				break
+			}
+		}
+
+		if allHigh {
+			m.sendPulse(low)
+		} else {
+			m.sendPulse(high)
+		}
+
+		m.notifyAll()
+	}
+
+	if m.Type == '%' {
+		if p == high {
+			return
+		}
+
+		if m.status {
+			m.sendPulse(low)
+		} else {
+			m.sendPulse(high)
+		}
+
+		// flip
+		m.status = !m.status
+		fmt.Printf("flip status of %s to %v\n", m.Name, m.status)
+		m.notifyAll()
+	}
+}
+
+func (m *module) sendPulse(p pulse) {
+	for _, c := range m.Connections {
+		// if _, ok := modules[c]; ok {
+		fmt.Printf("sending pulse %s from %s to %s\n", p, m.Name, c)
+		modules[c].Pulses = append(modules[c].Pulses, p)
+		// }
+	}
+}
+
+func (m *module) notifyAll() {
+	for _, c := range m.Connections {
+		// if _, ok := modules[c]; ok {
+		modules[c].Notify(m.Name)
+		// }
+	}
+}
+
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: go run part1/main.go [file]")
+		os.Exit(1)
+	}
+	file := os.Args[1]
+
+	content, _ := os.ReadFile(file)
+	split := strings.Split(string(content), "\n")
+	conjunctions := map[string]struct{}{}
+
+	for _, line := range split {
+		lineSplit := strings.Split(line, " -> ")
+		m := module{}
+		m.Type = lineSplit[0][0]
+		switch lineSplit[0][0] {
+		case '%':
+			m.Name = string(lineSplit[0][1:])
+		case '&':
+			m.Name = string(lineSplit[0][1:])
+			m.remember = make(map[string]pulse)
+			conjunctions[m.Name] = struct{}{}
+		case 'b':
+			m.Name = "broadcaster"
+		}
+
+		connections := strings.Split(lineSplit[1], ", ")
+		m.Connections = connections
+		for _, c := range m.Connections {
+			if _, ok := modules[c]; !ok {
+				modules[c] = &module{Name: c}
+			}
+		}
+
+		modules[m.Name] = &m
+	}
+
+	// gather conjunctures
+
+	// set up inputs for conjectures.
+	for k, v := range modules {
+		for _, c := range v.Connections {
+			if _, ok := conjunctions[c]; ok {
+				modules[c].remember[k] = low
+			}
+		}
+	}
+
+	// fmt.Println(modules["con"], modules["inv"])
+
+	// fmt.Println(modules)
+	// obviously have to divide this after we find the repeating frequency
+	signals := 4 //1000
+
+	for range signals {
+		broadcaster := modules["broadcaster"]
+		broadcaster.Pulses = append(broadcaster.Pulses, low)
+		broadcaster.Notify("button")
+
+		fmt.Println("----------")
+	}
+
+	fmt.Println(lowCount, highCount, lowCount*highCount)
+}

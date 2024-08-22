@@ -1,0 +1,119 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+type Signal struct {
+	p    pulse
+	from string
+	to   string
+}
+
+type module interface {
+	Process(s Signal)
+	Name() string
+	Type() string
+}
+
+type pulse string
+
+var low pulse = "low"
+var high pulse = "high"
+
+// this could be an embedded field, but I don't care right now
+// this guy now needs syncing.... does it though...?
+var modules = map[string]module{}
+
+type flipflop struct {
+	name  string
+	state bool
+	queue []Signal
+}
+
+type conjunction struct {
+	name   string
+	memory map[string]pulse
+	inputs map[string]struct{}
+	queue  []Signal
+}
+
+type broadcaster struct {
+	queue []Signal
+}
+
+type processor struct {
+	queue []Signal
+}
+
+var (
+	lowCount  int
+	highCount int
+)
+
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: go run part1/main.go [file]")
+		os.Exit(1)
+	}
+	file := os.Args[1]
+
+	content, _ := os.ReadFile(file)
+	split := strings.Split(string(content), "\n")
+	conjunctions := map[string]struct{}{}
+
+	for _, line := range split {
+		lineSplit := strings.Split(line, " -> ")
+		var m module
+
+		switch lineSplit[0][0] {
+		case '%':
+			m.Name = string(lineSplit[0][1:])
+		case '&':
+			m.Name = string(lineSplit[0][1:])
+			m.remember = make(map[string]pulse)
+			conjunctions[m.Name] = struct{}{}
+		case 'b':
+			m.Name = "broadcaster"
+		}
+
+		connections := strings.Split(lineSplit[1], ", ")
+		m.Connections = connections
+		for _, c := range m.Connections {
+			if _, ok := modules[c]; !ok {
+				modules[c] = &module{Name: c}
+			}
+		}
+
+		modules[m.Name] = &m
+	}
+
+	// gather conjunctures
+
+	// set up inputs for conjectures.
+	for k, v := range modules {
+		for _, c := range v.Connections {
+			if _, ok := conjunctions[c]; ok {
+				modules[c].remember[k] = low
+			}
+		}
+	}
+
+	// fmt.Println(modules["con"], modules["inv"])
+
+	// fmt.Println(modules)
+	// obviously have to divide this after we find the repeating frequency
+	signals := 4 //1000
+
+	for range signals {
+		broadcaster := modules["broadcaster"]
+		broadcaster.Pulses = append(broadcaster.Pulses, low)
+		broadcaster.Notify("button")
+
+		fmt.Println("----------")
+	}
+
+	fmt.Println(lowCount, highCount, lowCount*highCount)
+}
